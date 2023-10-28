@@ -8,9 +8,11 @@ import {
 	ScrollRestoration,
 } from '@remix-run/react';
 import favicon from '@/assets/favicon.svg';
+import fontStylesheetUrl from '@/styles/font.css';
 
 export const links: LinksFunction = () => [
 	{ rel: 'icon', type: 'image/svg+xml', href: favicon },
+	{ rel: 'stylesheet', href: fontStylesheetUrl },
 ];
 
 export default function App() {
