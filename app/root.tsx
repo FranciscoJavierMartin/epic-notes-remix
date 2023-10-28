@@ -8,7 +8,9 @@ import {
 	ScrollRestoration,
 } from '@remix-run/react';
 
-export const links: LinksFunction = () => [];
+export const links: LinksFunction = () => [
+	{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+];
 
 export default function App() {
 	return (
