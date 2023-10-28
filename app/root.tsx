@@ -7,9 +7,10 @@ import {
 	Scripts,
 	ScrollRestoration,
 } from '@remix-run/react';
+import favicon from '@/assets/favicon.svg';
 
 export const links: LinksFunction = () => [
-	{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+	{ rel: 'icon', type: 'image/svg+xml', href: favicon },
 ];
 
 export default function App() {
