@@ -10,12 +10,15 @@ import {
 import favicon from '@/assets/favicon.svg';
 import fontStylesheetUrl from '@/styles/font.css';
 import tailwindStylesheetUrl from '@/styles/tailwind.css';
+import { cssBundleHref } from '@remix-run/css-bundle';
 
-export const links: LinksFunction = () => [
-	{ rel: 'icon', type: 'image/svg+xml', href: favicon },
-	{ rel: 'stylesheet', href: fontStylesheetUrl },
-	{ rel: 'stylesheet', href: tailwindStylesheetUrl },
-];
+export const links: LinksFunction = () =>
+	[
+		{ rel: 'icon', type: 'image/svg+xml', href: favicon },
+		{ rel: 'stylesheet', href: fontStylesheetUrl },
+		{ rel: 'stylesheet', href: tailwindStylesheetUrl },
+		cssBundleHref ? { rel: 'stylesheet', href: cssBundleHref } : null!,
+	].filter(Boolean);
 
 export default function App() {
 	return (
