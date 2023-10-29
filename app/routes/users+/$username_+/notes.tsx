@@ -1,6 +1,6 @@
 import { json, type DataFunctionArgs } from '@remix-run/node';
 import { Link, NavLink, Outlet, useLoaderData } from '@remix-run/react';
-import { cn } from '@/utils/misc';
+import { cn, invariantResponse } from '@/utils/misc';
 import { db } from '@/utils/db.server';
 
 export async function loader({ params }: DataFunctionArgs) {
@@ -11,6 +11,8 @@ export async function loader({ params }: DataFunctionArgs) {
 			},
 		},
 	});
+
+	invariantResponse(owner, 'Owner not found', { status: 404 });
 
 	const notes = db.note
 		.findMany({
@@ -29,7 +31,7 @@ export async function loader({ params }: DataFunctionArgs) {
 
 export default function NotesRoute() {
 	const data = useLoaderData<typeof loader>();
-	const ownerDisplayName = data.owner?.name ?? data.owner?.username;
+	const ownerDisplayName = data.owner.name ?? data.owner.username;
 	const navLinkDefaultClassName =
 		'line-clamp-2 block rounded-l-full py-2 pl-8 pr-6 text-base lg:text-xl';
 
@@ -39,7 +41,7 @@ export default function NotesRoute() {
 				<div className='relative col-span-1'>
 					<div className='absolute inset-0 flex flex-col'>
 						<Link
-							to={`/users/${data.owner?.username}`}
+							to={`/users/${data.owner.username}`}
 							className='pb-4 pl-8 pr-4 pt-12'
 						>
 							<h1 className='text-base font-bold md:text-lg lg:text-left lg:text-2xl'>
