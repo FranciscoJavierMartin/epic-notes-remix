@@ -1,7 +1,8 @@
+import { Button } from '@/components/ui/button';
 import { db } from '@/utils/db.server';
 import { invariantResponse } from '@/utils/misc';
 import { json, type DataFunctionArgs } from '@remix-run/node';
-import { useLoaderData } from '@remix-run/react';
+import { Link, useLoaderData } from '@remix-run/react';
 
 export async function loader({ params }: DataFunctionArgs) {
 	const note = db.note.findFirst({
@@ -26,9 +27,15 @@ export default function NoteRoute() {
 		<div className='absolute inset-0 flex flex-col px-10'>
 			<h2 className='mb-2 pt-12 text-h2 lg:mb-6'>{data.note.title}</h2>
 			<div className='overflow-y-auto pb-24'>
-				<div className='whitespace-break-spaces text-sm md:text-lg'>
+				<p className='whitespace-break-spaces text-sm md:text-lg'>
 					{data.note.content}
-				</div>
+				</p>
+			</div>
+			<div className='floating-toolbar'>
+				<Button variant='destructive'>Delete</Button>
+				<Button asChild>
+					<Link to='edit'>Edit</Link>
+				</Button>
 			</div>
 		</div>
 	);
