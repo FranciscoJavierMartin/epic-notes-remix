@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { db } from '@/utils/db.server';
 import { invariantResponse } from '@/utils/misc';
-import { json, type DataFunctionArgs } from '@remix-run/node';
-import { Link, useLoaderData } from '@remix-run/react';
+import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
+import { Form, Link, useLoaderData } from '@remix-run/react';
 
 export async function loader({ params }: DataFunctionArgs) {
 	const note = db.note.findFirst({
@@ -20,6 +20,11 @@ export async function loader({ params }: DataFunctionArgs) {
 	});
 }
 
+export async function action({ params }: DataFunctionArgs) {
+	db.note.delete({ where: { id: { equals: params.noteId } } });
+	return redirect(`/users/${params.username}/notes`);
+}
+
 export default function NoteRoute() {
 	const data = useLoaderData<typeof loader>();
 
@@ -32,7 +37,11 @@ export default function NoteRoute() {
 				</p>
 			</div>
 			<div className='floating-toolbar'>
-				<Button variant='destructive'>Delete</Button>
+				<Form method='POST'>
+					<Button type='submit' variant='destructive'>
+						Delete
+					</Button>
+				</Form>
 				<Button asChild>
 					<Link to='edit'>Edit</Link>
 				</Button>
