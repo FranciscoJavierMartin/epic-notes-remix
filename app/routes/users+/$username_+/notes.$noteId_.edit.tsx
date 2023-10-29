@@ -1,4 +1,4 @@
-import { json, type DataFunctionArgs } from '@remix-run/node';
+import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, useLoaderData } from '@remix-run/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,20 @@ export async function loader({ params }: DataFunctionArgs) {
 	invariantResponse(note, 'Note not found', { status: 404 });
 
 	return json({ note: { title: note.title, content: note.content } });
+}
+
+export async function action({ params, request }: DataFunctionArgs) {
+	const formData = await request.formData();
+	const title = formData.get('title');
+	const content = formData.get('content');
+
+	db.note.update({
+		where: { id: { equals: params.noteId } },
+		// @ts-expect-error
+		data: { title, content },
+	});
+
+	return redirect(`/users/${params.username}/notes/${params.noteId}`);
 }
 
 export default function NoteEdit() {
