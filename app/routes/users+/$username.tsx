@@ -1,6 +1,6 @@
-import { db } from '@/utils/db.server';
 import { json, type DataFunctionArgs } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
+import { db } from '@/utils/db.server';
 
 export async function loader({ params }: DataFunctionArgs) {
 	const user = db.user.findFirst({
