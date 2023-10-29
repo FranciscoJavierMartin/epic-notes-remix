@@ -1,6 +1,7 @@
 import { json, type DataFunctionArgs } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
 import { db } from '@/utils/db.server';
+import { invariantResponse } from '@/utils/misc';
 
 export async function loader({ params }: DataFunctionArgs) {
 	const user = db.user.findFirst({
@@ -11,7 +12,9 @@ export async function loader({ params }: DataFunctionArgs) {
 		},
 	});
 
-	return json({ user: { name: user?.name, username: user?.username } });
+	invariantResponse(user, 'User not found', { status: 404 });
+
+	return json({ user: { name: user.name, username: user.username } });
 }
 
 export default function KodyProfileRoute() {
