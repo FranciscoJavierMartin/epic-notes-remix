@@ -1,8 +1,29 @@
-import { Button } from '@/components/ui/button';
-import { db } from '@/utils/db.server';
-import { invariantResponse } from '@/utils/misc';
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
-import { Form, Link, useLoaderData } from '@remix-run/react';
+import { Form, Link, useLoaderData, type MetaFunction } from '@remix-run/react';
+import { Button } from '@/components/ui/button';
+import { invariantResponse } from '@/utils/misc';
+import { db } from '@/utils/db.server';
+import { type loader as notesLoader } from './notes';
+
+export const meta: MetaFunction<
+	typeof loader,
+	{ 'routes/users+/$username_+/notes': typeof notesLoader }
+> = ({ data, params, matches }) => {
+	const notesMatch = matches.find(
+		(m) => m.id === 'routes/users+/$username_+/notes',
+	);
+	const displayName = notesMatch?.data.owner.name ?? params.username;
+	const noteTitle = data?.note.title ?? 'Note';
+	const noteContentsSummary =
+		data && data.note.content.length > 100
+			? data.note.content.slice(0, 97) + '...'
+			: 'No content';
+
+	return [
+		{ title: `${noteTitle} | ${displayName}'s Notes | Epic Notes` },
+		{ name: 'description', content: noteContentsSummary },
+	];
+};
 
 export async function loader({ params }: DataFunctionArgs) {
 	const note = db.note.findFirst({
