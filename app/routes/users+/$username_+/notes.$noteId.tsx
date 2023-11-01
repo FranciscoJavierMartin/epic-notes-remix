@@ -1,9 +1,10 @@
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, Link, useLoaderData, type MetaFunction } from '@remix-run/react';
 import { Button } from '@/components/ui/button';
+import { GeneralErrorBoundary } from '@/components/error-boundary';
+import { type loader as notesLoader } from './notes';
 import { invariantResponse } from '@/utils/misc';
 import { db } from '@/utils/db.server';
-import { type loader as notesLoader } from './notes';
 
 export const meta: MetaFunction<
 	typeof loader,
@@ -78,5 +79,17 @@ export default function NoteRoute() {
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+export function ErrorBoundary() {
+	return (
+		<GeneralErrorBoundary
+			statusHandlers={{
+				404: ({ params }) => (
+					<p>No note with the id "{params.noteId}" exists</p>
+				),
+			}}
+		/>
 	);
 }

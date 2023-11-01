@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusButton } from '@/components/ui/status-button';
+import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { db } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
 
@@ -70,5 +71,17 @@ export default function NoteEdit() {
 				</StatusButton>
 			</div>
 		</Form>
+	);
+}
+
+export function ErrorBoundary() {
+	return (
+		<GeneralErrorBoundary
+			statusHandlers={{
+				404: ({ params }) => (
+					<p>No note with the id "{params.noteId}" exists</p>
+				),
+			}}
+		/>
 	);
 }
