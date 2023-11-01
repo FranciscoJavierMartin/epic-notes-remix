@@ -1,17 +1,12 @@
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
-import {
-	Form,
-	useFormAction,
-	useLoaderData,
-	useNavigation,
-} from '@remix-run/react';
+import { Form, useLoaderData } from '@remix-run/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { db } from '@/utils/db.server';
-import { invariantResponse } from '@/utils/misc';
 import { StatusButton } from '@/components/ui/status-button';
+import { db } from '@/utils/db.server';
+import { invariantResponse, useIsSubmitting } from '@/utils/misc';
 
 export async function loader({ params }: DataFunctionArgs) {
 	const note = db.note.findFirst({
@@ -45,12 +40,7 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 export default function NoteEdit() {
 	const data = useLoaderData<typeof loader>();
-	const navigation = useNavigation();
-	const formAction = useFormAction();
-	const isSubmitting =
-		navigation.state !== 'idle' &&
-		navigation.formMethod === 'POST' &&
-		navigation.formAction === formAction;
+	const isSubmitting = useIsSubmitting();
 
 	return (
 		<Form
