@@ -1,7 +1,14 @@
 import { json, type DataFunctionArgs } from '@remix-run/node';
-import { Link, useLoaderData } from '@remix-run/react';
+import { Link, type MetaFunction, useLoaderData } from '@remix-run/react';
 import { db } from '@/utils/db.server';
 import { invariantResponse } from '@/utils/misc';
+
+export const meta: MetaFunction = () => {
+	return [
+		{ title: 'Profile | Epic Notes' },
+		{ name: 'description', content: 'Checkout this profile on Epic Notes' },
+	];
+};
 
 export async function loader({ params }: DataFunctionArgs) {
 	const user = db.user.findFirst({
