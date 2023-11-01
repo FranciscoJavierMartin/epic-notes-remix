@@ -1,5 +1,10 @@
 import { json, type DataFunctionArgs } from '@remix-run/node';
-import { Link, type MetaFunction, useLoaderData } from '@remix-run/react';
+import {
+	Link,
+	type MetaFunction,
+	useLoaderData,
+	useRouteError,
+} from '@remix-run/react';
 import { db } from '@/utils/db.server';
 import { invariantResponse } from '@/utils/misc';
 
@@ -35,6 +40,16 @@ export default function KodyProfileRoute() {
 			<Link to='notes' className='underline' prefetch='intent'>
 				Notes
 			</Link>
+		</div>
+	);
+}
+
+export function ErrorBoundary() {
+	const error = useRouteError();
+
+	return (
+		<div className='container mx-auto flex h-full w-full items-center justify-center bg-destructive p-20 text-h2 text-destructive-foreground'>
+			<p>Oh no, something went wrong. Sorry about that.</p>
 		</div>
 	);
 }
