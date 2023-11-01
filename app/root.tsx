@@ -33,6 +33,8 @@ export default function App() {
 	return (
 		<html lang='en' className='h-full overflow-x-hidden'>
 			<head>
+				<title>Epic Notes</title>
+				<meta name='description' content="Your own captain's log" />
 				<meta charSet='utf-8' />
 				<meta name='viewport' content='width=device-width, initial-scale=1' />
 				<Meta />
