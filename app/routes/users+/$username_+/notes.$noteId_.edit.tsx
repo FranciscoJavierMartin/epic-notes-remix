@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,16 @@ type ActionErrors = {
 
 const titleMaxLength = 100;
 const contentMaxLength = 10000;
+
+function useHydrated() {
+	const [isHydrated, setIsHydrated] = useState<boolean>(false);
+
+	useEffect(() => {
+		setIsHydrated(true);
+	}, []);
+
+	return isHydrated;
+}
 
 export async function loader({ params }: DataFunctionArgs) {
 	const note = db.note.findFirst({
@@ -110,6 +121,7 @@ export default function NoteEdit() {
 	const data = useLoaderData<typeof loader>();
 	const actionData = useActionData<typeof action>();
 	const isSubmitting = useIsSubmitting();
+	const isHydrated = useHydrated();
 
 	const fieldErrors =
 		actionData?.status === 'error' ? actionData.errors.fieldErrors : null;
@@ -121,6 +133,7 @@ export default function NoteEdit() {
 			<Form
 				id='note-editor'
 				method='POST'
+				noValidate={isHydrated}
 				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
 			>
 				<div className='flex flex-col gap-1'>
