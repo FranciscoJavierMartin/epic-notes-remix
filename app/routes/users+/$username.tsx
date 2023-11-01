@@ -3,10 +3,12 @@ import { Link, type MetaFunction, useLoaderData } from '@remix-run/react';
 import { db } from '@/utils/db.server';
 import { invariantResponse } from '@/utils/misc';
 
-export const meta: MetaFunction = () => {
+export const meta: MetaFunction<typeof loader> = ({ data, params }) => {
+	const displayName = data?.user.name ?? params.username;
+
 	return [
-		{ title: 'Profile | Epic Notes' },
-		{ name: 'description', content: 'Checkout this profile on Epic Notes' },
+		{ title: `${displayName} | Epic Notes` },
+		{ name: 'description', content: `Profile of ${displayName} on Epic Notes` },
 	];
 };
 
