@@ -1,5 +1,5 @@
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
-import { Form, useLoaderData } from '@remix-run/react';
+import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,17 @@ import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { db } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
+
+type ActionErrors = {
+	formErrors: Array<string>;
+	fieldErrors: {
+		title: Array<string>;
+		content: Array<string>;
+	};
+};
+
+const titleMaxLength = 100;
+const contentMaxLength = 10000;
 
 export async function loader({ params }: DataFunctionArgs) {
 	const note = db.note.findFirst({
@@ -24,12 +35,44 @@ export async function loader({ params }: DataFunctionArgs) {
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
+	invariantResponse(params.noteId, 'noteId param is required');
+
 	const formData = await request.formData();
 	const title = formData.get('title');
 	const content = formData.get('content');
 
 	invariantResponse(typeof title === 'string', 'title must be a string');
 	invariantResponse(typeof content === 'string', 'content must be a string');
+
+	const errors: ActionErrors = {
+		formErrors: [],
+		fieldErrors: {
+			title: [],
+			content: [],
+		},
+	};
+
+	if (title === '') {
+		errors.fieldErrors.title.push('Title is required');
+	}
+	if (title.length > titleMaxLength) {
+		errors.fieldErrors.title.push('Title must be at most 100 characters');
+	}
+	if (content === '') {
+		errors.fieldErrors.content.push('Content is required');
+	}
+	if (content.length > contentMaxLength) {
+		errors.fieldErrors.content.push('Content must be at most 10000 characters');
+	}
+
+	const hasErrors =
+		errors.formErrors.length ||
+		Object.values(errors.fieldErrors).some((fieldErrors) => fieldErrors.length);
+
+	console.log(hasErrors);
+	if (hasErrors) {
+		return json({ status: 'error', errors } as const, { status: 400 });
+	}
 
 	db.note.update({
 		where: { id: { equals: params.noteId } },
@@ -39,39 +82,16 @@ export async function action({ params, request }: DataFunctionArgs) {
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
 }
 
-export default function NoteEdit() {
-	const data = useLoaderData<typeof loader>();
-	const isSubmitting = useIsSubmitting();
-
-	return (
-		<Form
-			method='POST'
-			className='flex h-full flex-col gap-y-4 overflow-x-hidden px-10 pb-28 pt-12'
-		>
-			<div className='flex flex-col gap-1'>
-				<div>
-					<Label>Title</Label>
-					<Input name='title' defaultValue={data.note.title} />
-				</div>
-				<div>
-					<Label>Content</Label>
-					<Textarea name='content' defaultValue={data.note.content} />
-				</div>
-			</div>
-			<div className='floating-toolbar'>
-				<Button variant='destructive' type='reset'>
-					Reset
-				</Button>
-				<StatusButton
-					type='submit'
-					disabled={isSubmitting}
-					status={isSubmitting ? 'pending' : 'idle'}
-				>
-					Submit
-				</StatusButton>
-			</div>
-		</Form>
-	);
+function ErrorList({ errors }: { errors?: Array<string> | null }) {
+	return errors?.length ? (
+		<ul className='flex flex-col gap-1'>
+			{errors.map((error, i) => (
+				<li key={i} className='text-[10px] text-foreground-destructive'>
+					{error}
+				</li>
+			))}
+		</ul>
+	) : null;
 }
 
 export function ErrorBoundary() {
@@ -83,5 +103,67 @@ export function ErrorBoundary() {
 				),
 			}}
 		/>
+	);
+}
+
+export default function NoteEdit() {
+	const data = useLoaderData<typeof loader>();
+	const actionData = useActionData<typeof action>();
+	const isSubmitting = useIsSubmitting();
+
+	const fieldErrors =
+		actionData?.status === 'error' ? actionData.errors.fieldErrors : null;
+	const formErrors =
+		actionData?.status === 'error' ? actionData.errors.formErrors : null;
+
+	return (
+		<div>
+			<Form
+				id='note-editor'
+				method='POST'
+				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
+			>
+				<div className='flex flex-col gap-1'>
+					<div>
+						<Label>Title</Label>
+						<Input
+							name='title'
+							defaultValue={data.note.title}
+							required
+							maxLength={titleMaxLength}
+						/>
+						<div className='min-h-[32px] px-4 pb-3 pt-1'>
+							<ErrorList errors={fieldErrors?.title} />
+						</div>
+					</div>
+					<div>
+						<Label>Content</Label>
+						<Textarea
+							name='content'
+							defaultValue={data.note.content}
+							required
+							maxLength={contentMaxLength}
+						/>
+						<div className='min-h-[32px] px-4 pb-3 pt-1'>
+							<ErrorList errors={fieldErrors?.content} />
+						</div>
+					</div>
+				</div>
+				<ErrorList errors={formErrors} />
+			</Form>
+			<div className='floating-toolbar'>
+				<Button variant='destructive' type='reset'>
+					Reset
+				</Button>
+				<StatusButton
+					form='note-editor'
+					type='submit'
+					disabled={isSubmitting}
+					status={isSubmitting ? 'pending' : 'idle'}
+				>
+					Submit
+				</StatusButton>
+			</div>
+		</div>
 	);
 }
