@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { Button } from '@/components/ui/button';
@@ -126,6 +126,7 @@ export function ErrorBoundary() {
 export default function NoteEdit() {
 	const data = useLoaderData<typeof loader>();
 	const actionData = useActionData<typeof action>();
+	const formRef = useRef<HTMLFormElement>(null);
 	const isSubmitting = useIsSubmitting();
 	const isHydrated = useHydrated();
 
@@ -141,6 +142,22 @@ export default function NoteEdit() {
 	const contentHasErrors = Boolean(fieldErrors?.content.length);
 	const contentErrorId = contentHasErrors ? 'content-error' : undefined;
 
+	useEffect(() => {
+		const formEl = formRef.current;
+
+		if (formEl && actionData?.status === 'error') {
+			if (formEl.matches('[aria-invalid="true"]')) {
+				formEl.focus();
+			} else {
+				const firstInvalid = formEl.querySelector('[aria-invalid="true"]');
+
+				if (firstInvalid instanceof HTMLElement) {
+					firstInvalid.focus();
+				}
+			}
+		}
+	}, [actionData]);
+
 	return (
 		<div>
 			<Form
@@ -149,6 +166,8 @@ export default function NoteEdit() {
 				noValidate={isHydrated}
 				aria-invalid={formHasErrors || undefined}
 				aria-describedby={formErrorId}
+				ref={formRef}
+				tabIndex={-1}
 				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
 			>
 				<div className='flex flex-col gap-1'>
