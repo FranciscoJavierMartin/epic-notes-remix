@@ -93,9 +93,15 @@ export async function action({ params, request }: DataFunctionArgs) {
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
 }
 
-function ErrorList({ errors }: { errors?: Array<string> | null }) {
+function ErrorList({
+	id,
+	errors,
+}: {
+	id?: string;
+	errors?: Array<string> | null;
+}) {
 	return errors?.length ? (
-		<ul className='flex flex-col gap-1'>
+		<ul id={id} className='flex flex-col gap-1'>
 			{errors.map((error, i) => (
 				<li key={i} className='text-[10px] text-foreground-destructive'>
 					{error}
@@ -128,12 +134,21 @@ export default function NoteEdit() {
 	const formErrors =
 		actionData?.status === 'error' ? actionData.errors.formErrors : null;
 
+	const formHasErrors = Boolean(formErrors?.length);
+	const formErrorId = formHasErrors ? 'form-error' : undefined;
+	const titleHasErrors = Boolean(fieldErrors?.title.length);
+	const titleErrorId = titleHasErrors ? 'title-error' : undefined;
+	const contentHasErrors = Boolean(fieldErrors?.content.length);
+	const contentErrorId = contentHasErrors ? 'content-error' : undefined;
+
 	return (
 		<div>
 			<Form
 				id='note-editor'
 				method='POST'
 				noValidate={isHydrated}
+				aria-invalid={formHasErrors || undefined}
+				aria-describedby={formErrorId}
 				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
 			>
 				<div className='flex flex-col gap-1'>
@@ -145,9 +160,12 @@ export default function NoteEdit() {
 							defaultValue={data.note.title}
 							required
 							maxLength={titleMaxLength}
+							aria-invalid={titleHasErrors || undefined}
+							aria-describedby={titleErrorId}
+							autoFocus
 						/>
 						<div className='min-h-[32px] px-4 pb-3 pt-1'>
-							<ErrorList errors={fieldErrors?.title} />
+							<ErrorList id={titleErrorId} errors={fieldErrors?.title} />
 						</div>
 					</div>
 					<div>
@@ -158,13 +176,15 @@ export default function NoteEdit() {
 							defaultValue={data.note.content}
 							required
 							maxLength={contentMaxLength}
+							aria-invalid={contentHasErrors || undefined}
+							aria-describedby={contentErrorId}
 						/>
 						<div className='min-h-[32px] px-4 pb-3 pt-1'>
-							<ErrorList errors={fieldErrors?.content} />
+							<ErrorList id={contentErrorId} errors={fieldErrors?.content} />
 						</div>
 					</div>
 				</div>
-				<ErrorList errors={formErrors} />
+				<ErrorList id={formErrorId} errors={formErrors} />
 			</Form>
 			<div className='floating-toolbar'>
 				<Button form='note-editor' variant='destructive' type='reset'>
