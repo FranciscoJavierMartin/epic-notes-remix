@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { z } from 'zod';
+import { parse } from '@conform-to/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,18 +53,17 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 	const formData = await request.formData();
 
-	const result = NoteEditorSchema.safeParse({
-		title: formData.get('title'),
-		content: formData.get('content'),
+	const submission = parse(formData, {
+		schema: NoteEditorSchema,
 	});
 
-	if (!result.success) {
-		return json({ status: 'error', errors: result.error.flatten() } as const, {
+	if (!submission.value) {
+		return json({ status: 'error', submission } as const, {
 			status: 400,
 		});
 	}
 
-	const { title, content } = result.data;
+	const { title, content } = submission.value;
 
 	db.note.update({
 		where: { id: { equals: params.noteId } },
@@ -111,9 +111,9 @@ export default function NoteEdit() {
 	const isHydrated = useHydrated();
 
 	const fieldErrors =
-		actionData?.status === 'error' ? actionData.errors.fieldErrors : null;
+		actionData?.status === 'error' ? actionData.submission.error : null;
 	const formErrors =
-		actionData?.status === 'error' ? actionData.errors.formErrors : null;
+		actionData?.status === 'error' ? actionData.submission.error[''] : null;
 
 	const formHasErrors = Boolean(formErrors?.length);
 	const formErrorId = formHasErrors ? 'form-error' : undefined;
