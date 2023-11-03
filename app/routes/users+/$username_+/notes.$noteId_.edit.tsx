@@ -1,4 +1,10 @@
-import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
+import {
+	unstable_createMemoryUploadHandler as createMemoryUploadHandler,
+	json,
+	unstable_parseMultipartFormData as parseMultipartFormData,
+	redirect,
+	type DataFunctionArgs,
+} from '@remix-run/node';
 import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { z } from 'zod';
 import { getFieldsetConstraint, parse } from '@conform-to/zod';
@@ -11,9 +17,11 @@ import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { db } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
 import { conform, useForm } from '@conform-to/react';
+import { ImageChooser } from '@/components/ui/image-chooser';
 
 const titleMaxLength = 100;
 const contentMaxLength = 10000;
+const MAX_UPLOAD_SIZE = 1024 * 1024 * 3; // 3MB
 
 const NoteEditorSchema = z.object({
 	title: z.string().min(1).max(titleMaxLength),
@@ -31,13 +39,25 @@ export async function loader({ params }: DataFunctionArgs) {
 
 	invariantResponse(note, 'Note not found', { status: 404 });
 
-	return json({ note: { title: note.title, content: note.content } });
+	return json({
+		note: {
+			title: note.title,
+			content: note.content,
+			images: note.images?.map((image) => ({
+				id: image.id,
+				altText: image.altText,
+			})),
+		},
+	});
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
 	invariantResponse(params.noteId, 'noteId param is required');
 
-	const formData = await request.formData();
+	const formData = await parseMultipartFormData(
+		request,
+		createMemoryUploadHandler({ maxPartSize: MAX_UPLOAD_SIZE }),
+	);
 
 	const submission = parse(formData, {
 		schema: NoteEditorSchema,
@@ -53,7 +73,19 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 	db.note.update({
 		where: { id: { equals: params.noteId } },
-		data: { title, content },
+		data: {
+			title,
+			content,
+			images: [
+				{
+					// @ts-expect-error
+					id: formData.get('imageId'),
+					file: formData.get('file'),
+					// @ts-expect-error
+					altText: formData.get('altText'),
+				},
+			],
+		},
 	});
 
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
@@ -111,6 +143,7 @@ export default function NoteEdit() {
 		<div>
 			<Form
 				method='POST'
+				encType='multipart/form-data'
 				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
 				{...form.props}
 			>
@@ -134,6 +167,12 @@ export default function NoteEdit() {
 								errors={fields.content.errors}
 							/>
 						</div>
+					</div>
+					<div>
+						<Label>Image</Label>
+						<ImageChooser
+							image={data.note.images?.length ? data.note.images[0] : undefined}
+						/>
 					</div>
 				</div>
 				<ErrorList id={form.errorId} errors={form.errors} />
