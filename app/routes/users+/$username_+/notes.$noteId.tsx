@@ -41,7 +41,7 @@ export async function loader({ params }: DataFunctionArgs) {
 		note: {
 			title: note.title,
 			content: note.content,
-			images: note.images.map((image) => ({
+			images: note.images?.map((image) => ({
 				id: image.id,
 				altText: image.altText,
 			})),
@@ -67,7 +67,7 @@ export default function NoteRoute() {
 			<h2 className='mb-2 pt-12 text-h2 lg:mb-6'>{data.note.title}</h2>
 			<div className='overflow-y-auto pb-24'>
 				<ul className='flex flex-wrap gap-5 py-5'>
-					{data.note.images.map((image) => (
+					{data.note.images?.map((image) => (
 						<li key={image.id}>
 							<a href={`/resources/images/${image.id}`}>
 								<img

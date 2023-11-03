@@ -26,6 +26,15 @@ const MAX_UPLOAD_SIZE = 1024 * 1024 * 3; // 3MB
 const NoteEditorSchema = z.object({
 	title: z.string().min(1).max(titleMaxLength),
 	content: z.string().min(1).max(contentMaxLength),
+	imageId: z.string().optional(),
+	file: z
+		.instanceof(File)
+		.refine(
+			(file) => file.size <= MAX_UPLOAD_SIZE,
+			'File size must be less than 3MB',
+		)
+		.optional(),
+	altText: z.string().optional(),
 });
 
 export async function loader({ params }: DataFunctionArgs) {
@@ -69,7 +78,7 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	const { title, content } = submission.value;
+	const { title, content, file, imageId, altText } = submission.value;
 
 	db.note.update({
 		where: { id: { equals: params.noteId } },
@@ -78,11 +87,9 @@ export async function action({ params, request }: DataFunctionArgs) {
 			content,
 			images: [
 				{
-					// @ts-expect-error
-					id: formData.get('imageId'),
-					file: formData.get('file'),
-					// @ts-expect-error
-					altText: formData.get('altText'),
+					id: imageId!,
+					file,
+					altText: altText!,
 				},
 			],
 		},
