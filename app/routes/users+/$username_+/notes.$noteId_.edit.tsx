@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, useActionData, useLoaderData } from '@remix-run/react';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,18 +9,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { db } from '@/utils/db.server';
-import { invariantResponse, useIsSubmitting } from '@/utils/misc';
-
-type ActionErrors = {
-	formErrors: Array<string>;
-	fieldErrors: {
-		title: Array<string>;
-		content: Array<string>;
-	};
-};
+import {
+	invariantResponse,
+	useFocusInvalid,
+	useIsSubmitting,
+} from '@/utils/misc';
 
 const titleMaxLength = 100;
 const contentMaxLength = 10000;
+
+const NoteEditorSchema = z.object({
+	title: z.string().min(1).max(titleMaxLength),
+	content: z.string().min(1).max(contentMaxLength),
+});
 
 function useHydrated() {
 	const [isHydrated, setIsHydrated] = useState<boolean>(false);
@@ -49,41 +51,19 @@ export async function action({ params, request }: DataFunctionArgs) {
 	invariantResponse(params.noteId, 'noteId param is required');
 
 	const formData = await request.formData();
-	const title = formData.get('title');
-	const content = formData.get('content');
 
-	invariantResponse(typeof title === 'string', 'title must be a string');
-	invariantResponse(typeof content === 'string', 'content must be a string');
+	const result = NoteEditorSchema.safeParse({
+		title: formData.get('title'),
+		content: formData.get('content'),
+	});
 
-	const errors: ActionErrors = {
-		formErrors: [],
-		fieldErrors: {
-			title: [],
-			content: [],
-		},
-	};
-
-	if (title === '') {
-		errors.fieldErrors.title.push('Title is required');
-	}
-	if (title.length > titleMaxLength) {
-		errors.fieldErrors.title.push('Title must be at most 100 characters');
-	}
-	if (content === '') {
-		errors.fieldErrors.content.push('Content is required');
-	}
-	if (content.length > contentMaxLength) {
-		errors.fieldErrors.content.push('Content must be at most 10000 characters');
+	if (!result.success) {
+		return json({ status: 'error', errors: result.error.flatten() } as const, {
+			status: 400,
+		});
 	}
 
-	const hasErrors =
-		errors.formErrors.length ||
-		Object.values(errors.fieldErrors).some((fieldErrors) => fieldErrors.length);
-
-	console.log(hasErrors);
-	if (hasErrors) {
-		return json({ status: 'error', errors } as const, { status: 400 });
-	}
+	const { title, content } = result.data;
 
 	db.note.update({
 		where: { id: { equals: params.noteId } },
@@ -137,26 +117,12 @@ export default function NoteEdit() {
 
 	const formHasErrors = Boolean(formErrors?.length);
 	const formErrorId = formHasErrors ? 'form-error' : undefined;
-	const titleHasErrors = Boolean(fieldErrors?.title.length);
+	const titleHasErrors = Boolean(fieldErrors?.title?.length);
 	const titleErrorId = titleHasErrors ? 'title-error' : undefined;
-	const contentHasErrors = Boolean(fieldErrors?.content.length);
+	const contentHasErrors = Boolean(fieldErrors?.content?.length);
 	const contentErrorId = contentHasErrors ? 'content-error' : undefined;
 
-	useEffect(() => {
-		const formEl = formRef.current;
-
-		if (formEl && actionData?.status === 'error') {
-			if (formEl.matches('[aria-invalid="true"]')) {
-				formEl.focus();
-			} else {
-				const firstInvalid = formEl.querySelector('[aria-invalid="true"]');
-
-				if (firstInvalid instanceof HTMLElement) {
-					firstInvalid.focus();
-				}
-			}
-		}
-	}, [actionData]);
+	useFocusInvalid(formRef.current, actionData?.status === 'error');
 
 	return (
 		<div>
