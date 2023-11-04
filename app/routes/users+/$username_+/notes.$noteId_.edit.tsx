@@ -144,7 +144,6 @@ export default function NoteEdit() {
 		},
 	});
 
-	console.log(data.note.images.length);
 	const imageList = useFieldList(form.ref, fields.images);
 
 	return (
