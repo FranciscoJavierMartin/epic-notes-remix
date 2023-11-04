@@ -8,16 +8,16 @@ import {
 import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { z } from 'zod';
 import { getFieldsetConstraint, parse } from '@conform-to/zod';
+import { conform, useFieldList, useForm, list } from '@conform-to/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
+import { ImageChooser } from '@/components/ui/image-chooser';
 import { db, updateNote } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
-import { conform, useFieldList, useForm } from '@conform-to/react';
-import { ImageChooser } from '@/components/ui/image-chooser';
 
 const titleMaxLength = 100;
 const contentMaxLength = 10000;
@@ -72,6 +72,10 @@ export async function action({ params, request }: DataFunctionArgs) {
 	const submission = parse(formData, {
 		schema: NoteEditorSchema,
 	});
+
+	if (submission.intent !== 'submit') {
+		return json({ status: 'idle', submission } as const);
+	}
 
 	if (!submission.value) {
 		return json({ status: 'error', submission } as const, {
@@ -136,10 +140,11 @@ export default function NoteEdit() {
 		defaultValue: {
 			title: data.note.title,
 			content: data.note.content,
-			image: data.note.images.length ? data.note.images : [{}],
+			images: data.note.images.length ? data.note.images : [{}],
 		},
 	});
 
+	console.log(data.note.images.length);
 	const imageList = useFieldList(form.ref, fields.images);
 
 	return (
@@ -150,6 +155,7 @@ export default function NoteEdit() {
 				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
 				{...form.props}
 			>
+				<button type='submit' className='hidden' />
 				<div className='flex flex-col gap-1'>
 					<div>
 						<Label htmlFor={fields.title.id}>Title</Label>
@@ -174,13 +180,30 @@ export default function NoteEdit() {
 					<div>
 						<Label>Images</Label>
 						<ul className='flex flex-col gap-4'>
-							{imageList.map((image) => (
-								<li key={image.key}>
+							{imageList.map((image, index) => (
+								<li
+									key={image.key}
+									className='relative border-b-2 border-muted-foreground pb-4'
+								>
+									<button
+										className='text-foreground-destructive absolute right-0 top-0'
+										{...list.remove(fields.images.name, { index })}
+									>
+										<span aria-hidden>❌</span>{' '}
+										<span className='sr-only'>Remove image {index + 1}</span>
+									</button>
 									<ImageChooser config={image} />
 								</li>
 							))}
 						</ul>
 					</div>
+					<Button
+						className='mt-3'
+						{...list.insert(fields.images.name, { defaultValue: {} })}
+					>
+						<span aria-hidden>➕ Image</span>{' '}
+						<span className='sr-only'>Add image</span>
+					</Button>
 				</div>
 				<ErrorList id={form.errorId} errors={form.errors} />
 			</Form>
