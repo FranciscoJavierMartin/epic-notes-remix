@@ -16,7 +16,7 @@ import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { db, updateNote } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
-import { conform, useForm } from '@conform-to/react';
+import { conform, useFieldList, useForm } from '@conform-to/react';
 import { ImageChooser } from '@/components/ui/image-chooser';
 
 const titleMaxLength = 100;
@@ -38,7 +38,7 @@ export const ImageFieldsetSchema = z.object({
 const NoteEditorSchema = z.object({
 	title: z.string().min(1).max(titleMaxLength),
 	content: z.string().min(1).max(contentMaxLength),
-	image: ImageFieldsetSchema,
+	images: z.array(ImageFieldsetSchema),
 });
 
 export async function loader({ params }: DataFunctionArgs) {
@@ -79,13 +79,13 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	const { title, content, image } = submission.value;
+	const { title, content, images } = submission.value;
 
 	await updateNote({
 		id: params.noteId,
 		title,
 		content,
-		images: [image],
+		images,
 	});
 
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
@@ -136,9 +136,11 @@ export default function NoteEdit() {
 		defaultValue: {
 			title: data.note.title,
 			content: data.note.content,
-			image: data.note.images[0],
+			image: data.note.images.length ? data.note.images : [{}],
 		},
 	});
+
+	const imageList = useFieldList(form.ref, fields.images);
 
 	return (
 		<div>
@@ -170,8 +172,14 @@ export default function NoteEdit() {
 						</div>
 					</div>
 					<div>
-						<Label>Image</Label>
-						<ImageChooser config={fields.image} />
+						<Label>Images</Label>
+						<ul className='flex flex-col gap-4'>
+							{imageList.map((image) => (
+								<li key={image.key}>
+									<ImageChooser config={image} />
+								</li>
+							))}
+						</ul>
 					</div>
 				</div>
 				<ErrorList id={form.errorId} errors={form.errors} />
