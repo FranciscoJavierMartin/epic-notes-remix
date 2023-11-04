@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
-import { db } from '@/utils/db.server';
+import { db, updateNote } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
 import { conform, useForm } from '@conform-to/react';
 import { ImageChooser } from '@/components/ui/image-chooser';
@@ -52,10 +52,7 @@ export async function loader({ params }: DataFunctionArgs) {
 		note: {
 			title: note.title,
 			content: note.content,
-			images: note.images?.map((image) => ({
-				id: image.id,
-				altText: image.altText,
-			})),
+			images: note.images.map((i) => ({ id: i.id, altText: i.altText })),
 		},
 	});
 }
@@ -80,19 +77,11 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 	const { title, content, file, imageId, altText } = submission.value;
 
-	db.note.update({
-		where: { id: { equals: params.noteId } },
-		data: {
-			title,
-			content,
-			images: [
-				{
-					id: imageId!,
-					file,
-					altText: altText!,
-				},
-			],
-		},
+	await updateNote({
+		id: params.noteId,
+		title,
+		content,
+		images: [{ file, id: imageId, altText }],
 	});
 
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
