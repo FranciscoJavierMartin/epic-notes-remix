@@ -1,3 +1,5 @@
 import { Honeypot } from 'remix-utils/honeypot/server';
 
-export const honeypot = new Honeypot({ validFromFieldName: null });
+export const honeypot = new Honeypot({
+	validFromFieldName: process.env.NODE_ENV === 'test' ? null : undefined,
+});
