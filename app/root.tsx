@@ -67,6 +67,9 @@ export default function App({ children }: { children: React.ReactNode }) {
 						<div className='font-light'>epic</div>
 						<div className='font-bold'>notes</div>
 					</Link>
+					<Link to='/signup' className='underline'>
+						Signup
+					</Link>
 				</nav>
 			</header>
 			<div className='flex-1'>
