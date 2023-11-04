@@ -19,6 +19,7 @@ import fontStylesheetUrl from '@/styles/font.css';
 import tailwindStylesheetUrl from '@/styles/tailwind.css';
 import favicon from '@/assets/favicon.svg';
 import { honeypot } from '@/utils/honeypot.server';
+import { csrf } from '@/utils/csrf.server';
 
 export const links: LinksFunction = () =>
 	[
@@ -30,8 +31,12 @@ export const links: LinksFunction = () =>
 
 export async function loader() {
 	const honeyProps = honeypot.getInputProps();
+	const [csrfToken, csrfCookieHeader] = await csrf.commitToken();
 
-	return json({ username: os.userInfo().username, honeyProps });
+	return json(
+		{ username: os.userInfo().username, honeyProps, csrfToken },
+		{ headers: csrfCookieHeader ? { 'set-cookie': csrfCookieHeader } : {} },
+	);
 }
 
 export const meta: MetaFunction = () => {
@@ -71,8 +76,8 @@ function App() {
 						<div className='font-light'>epic</div>
 						<div className='font-bold'>notes</div>
 					</Link>
-					<Link to='/signup' className='underline'>
-						Signup
+					<Link className='underline' to='/users/kody/notes/d27a197e/edit'>
+						Edit Kody's first note
 					</Link>
 				</nav>
 			</header>
