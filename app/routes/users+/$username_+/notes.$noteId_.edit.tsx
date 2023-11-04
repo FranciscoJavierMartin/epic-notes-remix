@@ -23,10 +23,8 @@ const titleMaxLength = 100;
 const contentMaxLength = 10000;
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 3; // 3MB
 
-const NoteEditorSchema = z.object({
-	title: z.string().min(1).max(titleMaxLength),
-	content: z.string().min(1).max(contentMaxLength),
-	imageId: z.string().optional(),
+export const ImageFieldsetSchema = z.object({
+	id: z.string().optional(),
 	file: z
 		.instanceof(File)
 		.refine(
@@ -35,6 +33,12 @@ const NoteEditorSchema = z.object({
 		)
 		.optional(),
 	altText: z.string().optional(),
+});
+
+const NoteEditorSchema = z.object({
+	title: z.string().min(1).max(titleMaxLength),
+	content: z.string().min(1).max(contentMaxLength),
+	image: ImageFieldsetSchema,
 });
 
 export async function loader({ params }: DataFunctionArgs) {
@@ -75,13 +79,13 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	const { title, content, file, imageId, altText } = submission.value;
+	const { title, content, image } = submission.value;
 
 	await updateNote({
 		id: params.noteId,
 		title,
 		content,
-		images: [{ file, id: imageId, altText }],
+		images: [image],
 	});
 
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
@@ -132,6 +136,7 @@ export default function NoteEdit() {
 		defaultValue: {
 			title: data.note.title,
 			content: data.note.content,
+			image: data.note.images[0],
 		},
 	});
 
@@ -166,9 +171,7 @@ export default function NoteEdit() {
 					</div>
 					<div>
 						<Label>Image</Label>
-						<ImageChooser
-							image={data.note.images?.length ? data.note.images[0] : undefined}
-						/>
+						<ImageChooser config={fields.image} />
 					</div>
 				</div>
 				<ErrorList id={form.errorId} errors={form.errors} />
