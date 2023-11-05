@@ -5,10 +5,12 @@ import {
 } from '@remix-run/node';
 import { Form } from '@remix-run/react';
 import { HoneypotInputs } from 'remix-utils/honeypot/react';
+import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { checkHoneypot } from '@/utils/honeypot.server';
+import { validateCSRF } from '@/utils/csrf.server';
 
 export const meta: MetaFunction = () => {
 	return [{ title: 'Setup Epic Notes Account' }];
@@ -16,6 +18,7 @@ export const meta: MetaFunction = () => {
 
 export async function action({ request }: DataFunctionArgs) {
 	const formData = await request.formData();
+	await validateCSRF(formData, request.headers);
 
 	checkHoneypot(formData);
 
@@ -36,6 +39,7 @@ export default function SignupRoute() {
 					method='POST'
 					className='mx-auto flex min-w-[368px] max-w-sm flex-col gap-4'
 				>
+					<AuthenticityTokenInput />
 					<HoneypotInputs />
 					<div>
 						<Label htmlFor='email-input'>Email</Label>

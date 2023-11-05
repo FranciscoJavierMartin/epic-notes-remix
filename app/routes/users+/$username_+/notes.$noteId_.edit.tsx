@@ -9,6 +9,7 @@ import { Form, useActionData, useLoaderData } from '@remix-run/react';
 import { z } from 'zod';
 import { getFieldsetConstraint, parse } from '@conform-to/zod';
 import { conform, useFieldList, useForm, list } from '@conform-to/react';
+import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { ImageChooser } from '@/components/ui/image-chooser';
 import { db, updateNote } from '@/utils/db.server';
 import { invariantResponse, useIsSubmitting } from '@/utils/misc';
+import { validateCSRF } from '@/utils/csrf.server';
 
 const titleMaxLength = 100;
 const contentMaxLength = 10000;
@@ -68,6 +70,8 @@ export async function action({ params, request }: DataFunctionArgs) {
 		request,
 		createMemoryUploadHandler({ maxPartSize: MAX_UPLOAD_SIZE }),
 	);
+
+	await validateCSRF(formData, request.headers);
 
 	const submission = parse(formData, {
 		schema: NoteEditorSchema,
@@ -154,6 +158,7 @@ export default function NoteEdit() {
 				className='flex h-full flex-col gap-y-4 overflow-y-auto overflow-x-hidden px-10 pb-28 pt-12'
 				{...form.props}
 			>
+				<AuthenticityTokenInput />
 				<button type='submit' className='hidden' />
 				<div className='flex flex-col gap-1'>
 					<div>
