@@ -36,7 +36,7 @@ export async function loader({ params }: DataFunctionArgs) {
 	});
 }
 
-export default function KodyProfileRoute() {
+export default function UserProfileRoute() {
 	const data = useLoaderData<typeof loader>();
 	const user = data.user;
 	const userDisplayName = user.name ?? user.username;
