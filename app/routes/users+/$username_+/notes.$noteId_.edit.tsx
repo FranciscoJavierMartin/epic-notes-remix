@@ -11,17 +11,19 @@ import { getFieldsetConstraint, parse } from '@conform-to/zod';
 import { conform, useFieldList, useForm, list } from '@conform-to/react';
 import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { ImageChooser } from '@/components/ui/image-chooser';
 import { db, updateNote } from '@/utils/db.server';
-import { invariantResponse, useIsSubmitting } from '@/utils/misc';
+import { invariantResponse, useIsPending } from '@/utils/misc';
 import { validateCSRF } from '@/utils/csrf.server';
+import { ErrorList, InputField, TextareaField } from '@/components/forms';
+import { Icon } from '@/components/ui/icon';
 
+const titleMinLength = 1;
 const titleMaxLength = 100;
+const contentMinLength = 10;
 const contentMaxLength = 10000;
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 3; // 3MB
 
@@ -38,9 +40,9 @@ export const ImageFieldsetSchema = z.object({
 });
 
 const NoteEditorSchema = z.object({
-	title: z.string().min(1).max(titleMaxLength),
-	content: z.string().min(1).max(contentMaxLength),
-	images: z.array(ImageFieldsetSchema),
+	title: z.string().min(titleMinLength).max(titleMaxLength),
+	content: z.string().min(contentMinLength).max(contentMaxLength),
+	images: z.array(ImageFieldsetSchema).max(5).optional(),
 });
 
 export async function loader({ params }: DataFunctionArgs) {
@@ -87,7 +89,7 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	const { title, content, images } = submission.value;
+	const { title, content, images = [] } = submission.value;
 
 	await updateNote({
 		id: params.noteId,
@@ -114,7 +116,7 @@ export function ErrorBoundary() {
 export default function NoteEdit() {
 	const data = useLoaderData<typeof loader>();
 	const actionData = useActionData<typeof action>();
-	const isSubmitting = useIsSubmitting();
+	const isPending = useIsPending();
 
 	const [form, fields] = useForm({
 		id: 'note-editor',
@@ -133,7 +135,7 @@ export default function NoteEdit() {
 	const imageList = useFieldList(form.ref, fields.images);
 
 	return (
-		<div>
+		<div className='absolute inset-0'>
 			<Form
 				method='POST'
 				encType='multipart/form-data'
@@ -143,26 +145,16 @@ export default function NoteEdit() {
 				<AuthenticityTokenInput />
 				<button type='submit' className='hidden' />
 				<div className='flex flex-col gap-1'>
-					<div>
-						<Label htmlFor={fields.title.id}>Title</Label>
-						<Input autoFocus {...conform.input(fields.title)} />
-						<div className='min-h-[32px] px-4 pb-3 pt-1'>
-							<ErrorList
-								id={fields.title.errorId}
-								errors={fields.title.errors}
-							/>
-						</div>
-					</div>
-					<div>
-						<Label htmlFor={fields.content.id}>Content</Label>
-						<Textarea {...conform.textarea(fields.content)} />
-						<div className='min-h-[32px] px-4 pb-3 pt-1'>
-							<ErrorList
-								id={fields.content.errorId}
-								errors={fields.content.errors}
-							/>
-						</div>
-					</div>
+					<InputField
+						labelProps={{ children: 'Title' }}
+						inputProps={{ autoFocus: true, ...conform.input(fields.title) }}
+						errors={fields.title.errors}
+					/>
+					<TextareaField
+						labelProps={{ children: 'Content' }}
+						textareaProps={{ ...conform.textarea(fields.content) }}
+						errors={fields.content.errors}
+					/>
 					<div>
 						<Label>Images</Label>
 						<ul className='flex flex-col gap-4'>
@@ -175,7 +167,9 @@ export default function NoteEdit() {
 										className='text-foreground-destructive absolute right-0 top-0'
 										{...list.remove(fields.images.name, { index })}
 									>
-										<span aria-hidden>❌</span>{' '}
+										<span aria-hidden>
+											<Icon name='cross-1' />
+										</span>{' '}
 										<span className='sr-only'>Remove image {index + 1}</span>
 									</button>
 									<ImageChooser config={image} />
@@ -187,7 +181,9 @@ export default function NoteEdit() {
 						className='mt-3'
 						{...list.insert(fields.images.name, { defaultValue: {} })}
 					>
-						<span aria-hidden>➕ Image</span>{' '}
+						<span aria-hidden>
+							<Icon name='plus'>Image</Icon>
+						</span>{' '}
 						<span className='sr-only'>Add image</span>
 					</Button>
 				</div>
@@ -200,8 +196,8 @@ export default function NoteEdit() {
 				<StatusButton
 					form={form.id}
 					type='submit'
-					disabled={isSubmitting}
-					status={isSubmitting ? 'pending' : 'idle'}
+					disabled={isPending}
+					status={isPending ? 'pending' : 'idle'}
 				>
 					Submit
 				</StatusButton>
