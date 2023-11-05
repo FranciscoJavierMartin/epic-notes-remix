@@ -2,6 +2,7 @@ import { useFormAction, useNavigation } from '@remix-run/react';
 import { type ClassValue, clsx } from 'clsx';
 import { useEffect, useMemo, useRef } from 'react';
 import { twMerge } from 'tailwind-merge';
+import userFallback from '@/assets/user.png';
 
 /**
  * Does its best to get a string error message from an unknown error.
@@ -145,4 +146,12 @@ export function useDebounce<
 			),
 		[delay],
 	);
+}
+
+export function getUserImgSrc(imageId?: string | null) {
+	return imageId ? `/resources/images/${imageId}` : userFallback;
+}
+
+export function getNoteImgSrc(imageId: string) {
+	return `/resources/images/${imageId}`;
 }

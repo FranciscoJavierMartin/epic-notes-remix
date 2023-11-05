@@ -4,7 +4,7 @@ import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
 import { Button } from '@/components/ui/button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { type loader as notesLoader } from './notes';
-import { invariantResponse } from '@/utils/misc';
+import { getNoteImgSrc, invariantResponse } from '@/utils/misc';
 import { db } from '@/utils/db.server';
 import { validateCSRF } from '@/utils/csrf.server';
 
@@ -49,6 +49,8 @@ export async function loader({ params }: DataFunctionArgs) {
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
+	invariantResponse(params.noteId, 'noteId param is required');
+
 	const formData = await request.formData();
 
 	await validateCSRF(formData, request.headers);
@@ -71,9 +73,9 @@ export default function NoteRoute() {
 				<ul className='flex flex-wrap gap-5 py-5'>
 					{data.note.images.map((image) => (
 						<li key={image.id}>
-							<a href={`/resources/images/${image.id}`}>
+							<a href={getNoteImgSrc(image.id)}>
 								<img
-									src={`/resources/images/${image.id}`}
+									src={getNoteImgSrc(image.id)}
 									alt={image.altText ?? ''}
 									className='h-32 w-32 rounded-lg object-cover'
 								/>
