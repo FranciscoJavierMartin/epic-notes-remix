@@ -20,6 +20,7 @@ import tailwindStylesheetUrl from '@/styles/tailwind.css';
 import favicon from '@/assets/favicon.svg';
 import { honeypot } from '@/utils/honeypot.server';
 import { csrf } from '@/utils/csrf.server';
+import { AuthenticityTokenProvider } from 'remix-utils/csrf/react';
 
 export const links: LinksFunction = () =>
 	[
@@ -103,9 +104,11 @@ export default function AppWithProviders() {
 	const data = useLoaderData<typeof loader>();
 
 	return (
-		<HoneypotProvider {...data.honeyProps}>
-			<App />
-		</HoneypotProvider>
+		<AuthenticityTokenProvider token={data.csrfToken}>
+			<HoneypotProvider {...data.honeyProps}>
+				<App />
+			</HoneypotProvider>
+		</AuthenticityTokenProvider>
 	);
 }
 

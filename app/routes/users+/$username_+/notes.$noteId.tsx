@@ -1,10 +1,13 @@
 import { json, type DataFunctionArgs, redirect } from '@remix-run/node';
 import { Form, Link, useLoaderData, type MetaFunction } from '@remix-run/react';
+import { CSRFError } from 'remix-utils/csrf/server';
 import { Button } from '@/components/ui/button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { type loader as notesLoader } from './notes';
 import { invariantResponse } from '@/utils/misc';
 import { db } from '@/utils/db.server';
+import { csrf } from '@/utils/csrf.server';
+import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
 
 export const meta: MetaFunction<
 	typeof loader,
@@ -48,6 +51,17 @@ export async function loader({ params }: DataFunctionArgs) {
 
 export async function action({ params, request }: DataFunctionArgs) {
 	const formData = await request.formData();
+
+	try {
+		await csrf.validate(formData, request.headers);
+	} catch (error) {
+		if (error instanceof CSRFError) {
+			throw new Response('Invalid CSRF token', { status: 403 });
+		}
+
+		throw error;
+	}
+
 	const intent = formData.get('intent');
 
 	invariantResponse(intent === 'delete', 'Invalid intent');
@@ -82,6 +96,7 @@ export default function NoteRoute() {
 			</div>
 			<div className='floating-toolbar'>
 				<Form method='POST'>
+					<AuthenticityTokenInput />
 					<Button
 						type='submit'
 						variant='destructive'
