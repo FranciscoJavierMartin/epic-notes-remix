@@ -53,7 +53,7 @@ export default function UserProfileRoute() {
 					<div className='absolute -top-40'>
 						<div className='relative'>
 							<img
-								src={getUserImgSrc(data.user.image?.id)}
+								src={getUserImgSrc(user.image?.id)}
 								alt={userDisplayName}
 								className='h-52 w-52 rounded-full object-cover'
 							/>

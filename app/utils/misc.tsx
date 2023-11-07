@@ -173,9 +173,9 @@ export function useDebounce<
 }
 
 export function getUserImgSrc(imageId?: string | null) {
-	return imageId ? `/resources/images/${imageId}` : userFallback;
+	return imageId ? `/resources/user-images/${imageId}` : userFallback;
 }
 
 export function getNoteImgSrc(imageId: string) {
-	return `/resources/images/${imageId}`;
+	return `/resources/note-images/${imageId}`;
 }
