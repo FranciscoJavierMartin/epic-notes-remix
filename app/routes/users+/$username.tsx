@@ -31,12 +31,8 @@ export async function loader({ params }: DataFunctionArgs) {
 	invariantResponse(user, 'User not found', { status: 404 });
 
 	return json({
-		user: {
-			name: user.name,
-			username: user.username,
-			image: user.image ? { id: user.image.id } : undefined,
-		},
-		userJoinedDisplay: new Date(user.createdAt).toLocaleDateString(),
+		user,
+		userJoinedDisplay: user.createdAt.toLocaleDateString(),
 	});
 }
 
