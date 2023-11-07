@@ -1,17 +1,31 @@
 import fs from 'node:fs';
 import { PrismaClient } from '@prisma/client';
-import { faker } from '@faker-js/faker';
 import { promiseHash } from 'remix-utils/promise';
+import { faker } from '@faker-js/faker';
+import { UniqueEnforcer } from 'enforce-unique';
 
 const prisma = new PrismaClient();
+
+const uniqueUsernameEnforcer = new UniqueEnforcer();
 
 function createUser() {
 	const firstName = faker.person.firstName();
 	const lastName = faker.person.lastName();
-	const username = faker.internet.userName({
-		firstName: firstName.toLowerCase(),
-		lastName: lastName.toLowerCase(),
-	});
+
+	const username = uniqueUsernameEnforcer
+		.enforce(() => {
+			return (
+				faker.string.alphanumeric({ length: 2 }) +
+				'_' +
+				faker.internet.userName({
+					firstName: firstName.toLowerCase(),
+					lastName: lastName.toLowerCase(),
+				})
+			);
+		})
+		.slice(0, 20)
+		.toLowerCase()
+		.replace(/[^a-z0-9_]/g, '_');
 
 	return {
 		username,
@@ -95,28 +109,33 @@ async function seed(): Promise<void> {
 	);
 
 	for (let index = 0; index < totalUsers; index++) {
-		await prisma.user.create({
-			data: {
-				...createUser(),
-				image: { create: userImages[index % 10] },
-				notes: {
-					create: Array.from({
-						length: faker.number.int({ min: 1, max: 3 }),
-					}).map(() => ({
-						title: faker.lorem.sentence(),
-						content: faker.lorem.paragraphs(),
-						images: {
-							create: Array.from({
-								length: faker.number.int({ min: 1, max: 3 }),
-							}).map(() => {
-								const imgNumber = faker.number.int({ min: 0, max: 9 });
-								return noteImages[imgNumber];
-							}),
-						},
-					})),
+		await prisma.user
+			.create({
+				data: {
+					...createUser(),
+					image: { create: userImages[index % 10] },
+					notes: {
+						create: Array.from({
+							length: faker.number.int({ min: 1, max: 3 }),
+						}).map(() => ({
+							title: faker.lorem.sentence(),
+							content: faker.lorem.paragraphs(),
+							images: {
+								create: Array.from({
+									length: faker.number.int({ min: 1, max: 3 }),
+								}).map(() => {
+									const imgNumber = faker.number.int({ min: 0, max: 9 });
+									return noteImages[imgNumber];
+								}),
+							},
+						})),
+					},
 				},
-			},
-		});
+			})
+			.catch((e) => {
+				console.error('Error creating a user:', e);
+				return null;
+			});
 	}
 
 	console.timeEnd(`👤 Created ${totalUsers} users...`);
