@@ -1,10 +1,10 @@
 import { json, type DataFunctionArgs } from '@remix-run/node';
 import { Link, type MetaFunction, useLoaderData } from '@remix-run/react';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
-import { db } from '@/utils/db.server';
 import { getUserImgSrc, invariantResponse } from '@/utils/misc';
 import { Spacer } from '@/components/spacer';
 import { Button } from '@/components/ui/button';
+import { prisma } from '@/utils/db.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data, params }) => {
 	const displayName = data?.user.name ?? params.username;
@@ -16,11 +16,15 @@ export const meta: MetaFunction<typeof loader> = ({ data, params }) => {
 };
 
 export async function loader({ params }: DataFunctionArgs) {
-	const user = db.user.findFirst({
+	const user = await prisma.user.findFirst({
+		select: {
+			name: true,
+			username: true,
+			createdAt: true,
+			image: { select: { id: true } },
+		},
 		where: {
-			username: {
-				equals: params.username,
-			},
+			username: params.username,
 		},
 	});
 
