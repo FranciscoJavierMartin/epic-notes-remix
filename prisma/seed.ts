@@ -1,17 +1,14 @@
 import fs from 'node:fs';
 import { PrismaClient } from '@prisma/client';
-import { promiseHash } from 'remix-utils/promise';
 import { faker } from '@faker-js/faker';
 import { UniqueEnforcer } from 'enforce-unique';
 
 const prisma = new PrismaClient();
-
 const uniqueUsernameEnforcer = new UniqueEnforcer();
 
 function createUser() {
 	const firstName = faker.person.firstName();
 	const lastName = faker.person.lastName();
-
 	const username = uniqueUsernameEnforcer
 		.enforce(() => {
 			return (
@@ -111,7 +108,6 @@ async function seed(): Promise<void> {
 	for (let index = 0; index < totalUsers; index++) {
 		await prisma.user
 			.create({
-				select: { id: true },
 				data: {
 					...createUser(),
 					image: { create: userImages[index % 10] },
@@ -143,41 +139,62 @@ async function seed(): Promise<void> {
 
 	console.time(`🐨 Created user "kody"`);
 
-	const kodyImages = await promiseHash({
-		kodyUser: img({ filepath: './tests/fixtures/images/user/kody.png' }),
-		cuteKoala: img({
+	const kodyImages = await Promise.all([
+		img({ filepath: './tests/fixtures/images/user/kody.png' }),
+		img({
 			altText: 'an adorable koala cartoon illustration',
 			filepath: './tests/fixtures/images/kody-notes/cute-koala.png',
 		}),
-		koalaEating: img({
+		img({
 			altText: 'a cartoon illustration of a koala in a tree eating',
 			filepath: './tests/fixtures/images/kody-notes/koala-eating.png',
 		}),
-		koalaCuddle: img({
+		img({
 			altText: 'a cartoon illustration of koalas cuddling',
 			filepath: './tests/fixtures/images/kody-notes/koala-cuddle.png',
 		}),
-		mountain: img({
+		img({
 			altText: 'a beautiful mountain covered in snow',
 			filepath: './tests/fixtures/images/kody-notes/mountain.png',
 		}),
-		koalaCoder: img({
+		img({
 			altText: 'a koala coding at the computer',
 			filepath: './tests/fixtures/images/kody-notes/koala-coder.png',
 		}),
-		koalaMentor: img({
+		img({
 			altText:
 				'a koala in a friendly and helpful posture. The Koala is standing next to and teaching a woman who is coding on a computer and shows positive signs of learning and understanding what is being explained.',
 			filepath: './tests/fixtures/images/kody-notes/koala-mentor.png',
 		}),
-		koalaSoccer: img({
+		img({
 			altText: 'a cute cartoon koala kicking a soccer ball on a soccer field ',
 			filepath: './tests/fixtures/images/kody-notes/koala-soccer.png',
 		}),
-	});
+	]).then(
+		([
+			kodyUser,
+			cuteKoala,
+			koalaEating,
+			koalaCuddle,
+			mountain,
+			koalaCoder,
+			koalaMentor,
+			koalaSoccer,
+		]) => {
+			return {
+				kodyUser,
+				cuteKoala,
+				koalaEating,
+				koalaCuddle,
+				mountain,
+				koalaCoder,
+				koalaMentor,
+				koalaSoccer,
+			};
+		},
+	);
 
 	await prisma.user.create({
-		select: { id: true },
 		data: {
 			email: 'kody@kcd.dev',
 			username: 'kody',
