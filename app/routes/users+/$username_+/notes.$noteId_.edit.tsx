@@ -10,12 +10,13 @@ import { z } from 'zod';
 import { getFieldsetConstraint, parse } from '@conform-to/zod';
 import { conform, useFieldList, useForm, list } from '@conform-to/react';
 import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
+import { createId as cuid } from '@paralleldrive/cuid2';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { ImageChooser } from '@/components/ui/image-chooser';
-import { db, prisma, updateNote } from '@/utils/db.server';
+import { prisma } from '@/utils/db.server';
 import { invariantResponse, useIsPending } from '@/utils/misc';
 import { validateCSRF } from '@/utils/csrf.server';
 import { ErrorList, InputField, TextareaField } from '@/components/forms';
@@ -44,13 +45,14 @@ type ImageFieldset = z.infer<typeof ImageFieldsetSchema>;
 function imageHasFile(
 	image: ImageFieldset,
 ): image is ImageFieldset & { file: NonNullable<ImageFieldset['file']> } {
-	return Boolean(image.file?.size && image.file.size > 0);
+	return Boolean(image.file?.size && image.file?.size > 0);
 }
 
 function imageHasId(
 	image: ImageFieldset,
 ): image is ImageFieldset & { id: NonNullable<ImageFieldset['id']> } {
-	return image.id !== null;
+	console.log(image.id);
+	return !!image.id;
 }
 
 const NoteEditorSchema = z.object({
@@ -130,14 +132,40 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	// const { title, content, images = [] } = submission.value;
+	const {
+		title,
+		content,
+		imageUpdates = [],
+		newImages = [],
+	} = submission.value;
 
-	// await updateNote({
-	// 	id: params.noteId,
-	// 	title,
-	// 	content,
-	// 	images,
-	// });
+	await prisma.note.update({
+		select: { id: true },
+		where: { id: params.noteId },
+		data: { title, content },
+	});
+
+	await prisma.noteImage.deleteMany({
+		where: {
+			id: { notIn: imageUpdates.map((i) => i.id) },
+			noteId: params.noteId,
+		},
+	});
+
+	for (const updates of imageUpdates) {
+		await prisma.noteImage.update({
+			select: { id: true },
+			where: { id: updates.id },
+			data: { ...updates, id: updates.blob ? cuid() : updates.id },
+		});
+	}
+
+	for (const newImage of newImages) {
+		await prisma.noteImage.create({
+			select: { id: true },
+			data: { ...newImage, noteId: params.noteId },
+		});
+	}
 
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
 }
