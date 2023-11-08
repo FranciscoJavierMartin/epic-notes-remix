@@ -39,6 +39,20 @@ export const ImageFieldsetSchema = z.object({
 	altText: z.string().optional(),
 });
 
+type ImageFieldset = z.infer<typeof ImageFieldsetSchema>;
+
+function imageHasFile(
+	image: ImageFieldset,
+): image is ImageFieldset & { file: NonNullable<ImageFieldset['file']> } {
+	return Boolean(image.file?.size && image.file.size > 0);
+}
+
+function imageHasId(
+	image: ImageFieldset,
+): image is ImageFieldset & { id: NonNullable<ImageFieldset['id']> } {
+	return image.id !== null;
+}
+
 const NoteEditorSchema = z.object({
 	title: z.string().min(titleMinLength).max(titleMaxLength),
 	content: z.string().min(contentMinLength).max(contentMaxLength),
@@ -75,8 +89,38 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 	await validateCSRF(formData, request.headers);
 
-	const submission = parse(formData, {
-		schema: NoteEditorSchema,
+	const submission = await parse(formData, {
+		schema: NoteEditorSchema.transform(async ({ images = [], ...data }) => {
+			return {
+				...data,
+				imageUpdates: await Promise.all(
+					images.filter(imageHasId).map(async (image) => {
+						return imageHasFile(image)
+							? {
+									id: image.id,
+									altText: image.altText,
+									contentType: image.file.type,
+									blob: Buffer.from(await image.file.arrayBuffer()),
+							  }
+							: {
+									id: image.id,
+									altText: image.altText,
+							  };
+					}),
+				),
+				newImages: await Promise.all(
+					images
+						.filter(imageHasFile)
+						.filter((image) => !image.id)
+						.map(async (image) => ({
+							altText: image.altText,
+							contentType: image.file.type,
+							blob: Buffer.from(await image.file.arrayBuffer()),
+						})),
+				),
+			};
+		}),
+		async: true,
 	});
 
 	if (submission.intent !== 'submit') {
@@ -89,14 +133,14 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	const { title, content, images = [] } = submission.value;
+	// const { title, content, images = [] } = submission.value;
 
-	await updateNote({
-		id: params.noteId,
-		title,
-		content,
-		images,
-	});
+	// await updateNote({
+	// 	id: params.noteId,
+	// 	title,
+	// 	content,
+	// 	images,
+	// });
 
 	return redirect(`/users/${params.username}/notes/${params.noteId}`);
 }
