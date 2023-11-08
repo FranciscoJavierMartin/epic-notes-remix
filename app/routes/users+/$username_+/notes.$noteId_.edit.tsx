@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { ImageChooser } from '@/components/ui/image-chooser';
-import { db, updateNote } from '@/utils/db.server';
+import { db, prisma, updateNote } from '@/utils/db.server';
 import { invariantResponse, useIsPending } from '@/utils/misc';
 import { validateCSRF } from '@/utils/csrf.server';
 import { ErrorList, InputField, TextareaField } from '@/components/forms';
@@ -60,23 +60,20 @@ const NoteEditorSchema = z.object({
 });
 
 export async function loader({ params }: DataFunctionArgs) {
-	const note = db.note.findFirst({
-		where: {
-			id: {
-				equals: params.noteId,
+	const note = await prisma.note.findFirst({
+		where: { id: params.noteId },
+		select: {
+			title: true,
+			content: true,
+			images: {
+				select: { id: true, altText: true },
 			},
 		},
 	});
 
 	invariantResponse(note, 'Note not found', { status: 404 });
 
-	return json({
-		note: {
-			title: note.title,
-			content: note.content,
-			images: note.images.map((i) => ({ id: i.id, altText: i.altText })),
-		},
-	});
+	return json({ note });
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
