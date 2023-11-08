@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { type loader as notesLoader } from './notes';
 import { getNoteImgSrc, invariantResponse } from '@/utils/misc';
-import { db } from '@/utils/db.server';
+import { prisma } from '@/utils/db.server';
 import { validateCSRF } from '@/utils/csrf.server';
 
 export const meta: MetaFunction<
@@ -29,23 +29,22 @@ export const meta: MetaFunction<
 };
 
 export async function loader({ params }: DataFunctionArgs) {
-	const note = db.note.findFirst({
-		where: {
-			id: {
-				equals: params.noteId,
+	const note = await prisma.note.findFirst({
+		select: {
+			title: true,
+			content: true,
+			images: {
+				select: { id: true, altText: true },
 			},
+		},
+		where: {
+			id: params.noteId,
 		},
 	});
 
 	invariantResponse(note, 'Note not found', { status: 404 });
 
-	return json({
-		note: {
-			title: note.title,
-			content: note.content,
-			images: note.images.map((i) => ({ id: i.id, altText: i.altText })),
-		},
-	});
+	return json({ note });
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
@@ -59,7 +58,7 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 	invariantResponse(intent === 'delete', 'Invalid intent');
 
-	db.note.delete({ where: { id: { equals: params.noteId } } });
+	await prisma.note.delete({ where: { id: params.noteId } });
 	return redirect(`/users/${params.username}/notes`);
 }
 
