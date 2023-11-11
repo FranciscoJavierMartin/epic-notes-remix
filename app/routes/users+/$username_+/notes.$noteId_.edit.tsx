@@ -51,7 +51,6 @@ function imageHasFile(
 function imageHasId(
 	image: ImageFieldset,
 ): image is ImageFieldset & { id: NonNullable<ImageFieldset['id']> } {
-	console.log(image.id);
 	return !!image.id;
 }
 
@@ -79,7 +78,8 @@ export async function loader({ params }: DataFunctionArgs) {
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
-	invariantResponse(params.noteId, 'noteId param is required');
+	const { noteId } = params;
+	invariantResponse(noteId, 'noteId param is required');
 
 	const formData = await parseMultipartFormData(
 		request,
@@ -139,35 +139,39 @@ export async function action({ params, request }: DataFunctionArgs) {
 		newImages = [],
 	} = submission.value;
 
-	await prisma.note.update({
-		select: { id: true },
-		where: { id: params.noteId },
-		data: { title, content },
+	await prisma.$transaction(async ($prisma) => {
+		await $prisma.note.update({
+			select: { id: true },
+			where: { id: noteId },
+			data: { title, content },
+		});
+
+		await $prisma.noteImage.deleteMany({
+			where: {
+				id: { notIn: imageUpdates.map((i) => i.id) },
+				noteId,
+			},
+		});
+
+		throw new Error('Gotcha 🧝‍♂️, https://kcd.im/promises');
+
+		for (const updates of imageUpdates) {
+			await $prisma.noteImage.update({
+				select: { id: true },
+				where: { id: updates.id },
+				data: { ...updates, id: updates.blob ? cuid() : updates.id },
+			});
+		}
+
+		for (const newImage of newImages) {
+			await $prisma.noteImage.create({
+				select: { id: true },
+				data: { ...newImage, noteId },
+			});
+		}
 	});
 
-	await prisma.noteImage.deleteMany({
-		where: {
-			id: { notIn: imageUpdates.map((i) => i.id) },
-			noteId: params.noteId,
-		},
-	});
-
-	for (const updates of imageUpdates) {
-		await prisma.noteImage.update({
-			select: { id: true },
-			where: { id: updates.id },
-			data: { ...updates, id: updates.blob ? cuid() : updates.id },
-		});
-	}
-
-	for (const newImage of newImages) {
-		await prisma.noteImage.create({
-			select: { id: true },
-			data: { ...newImage, noteId: params.noteId },
-		});
-	}
-
-	return redirect(`/users/${params.username}/notes/${params.noteId}`);
+	return redirect(`/users/${params.username}/notes/${noteId}`);
 }
 
 export function ErrorBoundary() {
