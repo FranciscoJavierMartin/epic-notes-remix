@@ -11,16 +11,16 @@ import { getFieldsetConstraint, parse } from '@conform-to/zod';
 import { conform, useFieldList, useForm, list } from '@conform-to/react';
 import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
 import { createId as cuid } from '@paralleldrive/cuid2';
+import { GeneralErrorBoundary } from '@/components/error-boundary';
+import { ErrorList, InputField, TextareaField } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Icon } from '@/components/ui/icon';
 import { StatusButton } from '@/components/ui/status-button';
-import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { ImageChooser } from '@/components/ui/image-chooser';
 import { prisma } from '@/utils/db.server';
 import { invariantResponse, useIsPending } from '@/utils/misc';
 import { validateCSRF } from '@/utils/csrf.server';
-import { ErrorList, InputField, TextareaField } from '@/components/forms';
-import { Icon } from '@/components/ui/icon';
 
 const titleMinLength = 1;
 const titleMaxLength = 100;
@@ -45,13 +45,13 @@ type ImageFieldset = z.infer<typeof ImageFieldsetSchema>;
 function imageHasFile(
 	image: ImageFieldset,
 ): image is ImageFieldset & { file: NonNullable<ImageFieldset['file']> } {
-	return Boolean(image.file?.size && image.file?.size > 0);
+	return Boolean(image.file?.size);
 }
 
 function imageHasId(
 	image: ImageFieldset,
 ): image is ImageFieldset & { id: NonNullable<ImageFieldset['id']> } {
-	return !!image.id;
+	return Boolean(image.id);
 }
 
 const NoteEditorSchema = z.object({

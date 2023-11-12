@@ -1,10 +1,10 @@
 import { json, type DataFunctionArgs } from '@remix-run/node';
 import { Link, type MetaFunction, useLoaderData } from '@remix-run/react';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
-import { getUserImgSrc, invariantResponse } from '@/utils/misc';
 import { Spacer } from '@/components/spacer';
 import { Button } from '@/components/ui/button';
 import { prisma } from '@/utils/db.server';
+import { getUserImgSrc, invariantResponse } from '@/utils/misc';
 
 export const meta: MetaFunction<typeof loader> = ({ data, params }) => {
 	const displayName = data?.user.name ?? params.username;
