@@ -37,6 +37,7 @@ model Note {
   images NoteImage[]
 
   @@index([ownerId])
+  @@index([ownerId, updatedAt])
 }
 
 model NoteImage {
