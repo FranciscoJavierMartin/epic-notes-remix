@@ -1,9 +1,20 @@
 import { redirect, type DataFunctionArgs, json } from '@remix-run/node';
-import { GeneralErrorBoundary } from '@/components/error-boundary';
-import { db } from '@/utils/db.server';
-import { SearchBar } from '@/components/search-bar';
 import { Link, useLoaderData } from '@remix-run/react';
+import { z } from 'zod';
+import { GeneralErrorBoundary } from '@/components/error-boundary';
+import { SearchBar } from '@/components/search-bar';
+import { prisma } from '@/utils/db.server';
 import { cn, getUserImgSrc, useDelayedIsPending } from '@/utils/misc';
+import { ErrorList } from '@/components/forms';
+
+const UserSearchResultSchema = z.object({
+	id: z.string(),
+	username: z.string(),
+	name: z.string().nullable(),
+	imageId: z.string().nullable(),
+});
+
+const UserSearchResultsSchema = z.array(UserSearchResultSchema);
 
 export async function loader({ request }: DataFunctionArgs) {
 	const searchTerm = new URL(request.url).searchParams.get('search');
@@ -12,23 +23,37 @@ export async function loader({ request }: DataFunctionArgs) {
 		return redirect('/users');
 	}
 
-	const users = db.user.findMany({
-		where: {
-			username: {
-				contains: searchTerm ?? '',
-			},
-		},
-	});
+	const like = `%${searchTerm ?? ''}%`;
 
-	return json({
-		status: 'idle',
-		users: users.map((user) => ({
-			id: user.id,
-			username: user.username,
-			name: user.name,
-			image: user.image ? { id: user.image.id } : undefined,
-		})),
-	} as const);
+	const rawUsers = await prisma.$queryRaw`
+		SELECT User.id, User.username, User.name, UserImage.id AS imageId
+		FROM User
+		LEFT JOIN UserImage ON UserImage.userId = User.id
+		WHERE User.username LIKE ${like}
+		OR User.name LIKE ${like}
+		ORDER BY (
+			SELECT Note.updatedAt
+			FROM Note
+			WHERE Note.ownerId = user.id
+			ORDER BY Note.updatedAt DESC
+			LIMIT 1
+		) DESC
+		LIMIT 50
+	`;
+
+	const result =
+		process.env.NODE_ENV === 'production'
+			? ({
+					success: true,
+					data: rawUsers as z.infer<typeof UserSearchResultsSchema>,
+			  } as const)
+			: UserSearchResultsSchema.safeParse(rawUsers);
+
+	return result.success
+		? json({ status: 'idle', users: result.data } as const)
+		: json({ status: 'error', error: result.error.message } as const, {
+				status: 400,
+		  });
 }
 
 export default function UsersRoute() {
@@ -37,6 +62,10 @@ export default function UsersRoute() {
 		formMethod: 'GET',
 		formAction: '/users',
 	});
+
+	if (data.status === 'error') {
+		console.error(data.error);
+	}
 
 	return (
 		<div className='container mb-48 mt-36 flex flex-col items-center justify-center gap-6'>
@@ -61,7 +90,7 @@ export default function UsersRoute() {
 									>
 										<img
 											alt={user.name ?? user.username}
-											src={getUserImgSrc(user.image?.id)}
+											src={getUserImgSrc(user.imageId)}
 											className='h-16 w-16 rounded-full'
 										/>
 										{user.name ? (
@@ -79,6 +108,8 @@ export default function UsersRoute() {
 					) : (
 						<p>No users found</p>
 					)
+				) : data.status === 'error' ? (
+					<ErrorList errors={['There was an error parsing the results']} />
 				) : null}
 			</main>
 		</div>

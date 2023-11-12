@@ -10,12 +10,13 @@ import { z } from 'zod';
 import { getFieldsetConstraint, parse } from '@conform-to/zod';
 import { conform, useFieldList, useForm, list } from '@conform-to/react';
 import { AuthenticityTokenInput } from 'remix-utils/csrf/react';
+import { createId as cuid } from '@paralleldrive/cuid2';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { StatusButton } from '@/components/ui/status-button';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { ImageChooser } from '@/components/ui/image-chooser';
-import { db, updateNote } from '@/utils/db.server';
+import { prisma } from '@/utils/db.server';
 import { invariantResponse, useIsPending } from '@/utils/misc';
 import { validateCSRF } from '@/utils/csrf.server';
 import { ErrorList, InputField, TextareaField } from '@/components/forms';
@@ -39,6 +40,20 @@ export const ImageFieldsetSchema = z.object({
 	altText: z.string().optional(),
 });
 
+type ImageFieldset = z.infer<typeof ImageFieldsetSchema>;
+
+function imageHasFile(
+	image: ImageFieldset,
+): image is ImageFieldset & { file: NonNullable<ImageFieldset['file']> } {
+	return Boolean(image.file?.size && image.file?.size > 0);
+}
+
+function imageHasId(
+	image: ImageFieldset,
+): image is ImageFieldset & { id: NonNullable<ImageFieldset['id']> } {
+	return !!image.id;
+}
+
 const NoteEditorSchema = z.object({
 	title: z.string().min(titleMinLength).max(titleMaxLength),
 	content: z.string().min(contentMinLength).max(contentMaxLength),
@@ -46,27 +61,25 @@ const NoteEditorSchema = z.object({
 });
 
 export async function loader({ params }: DataFunctionArgs) {
-	const note = db.note.findFirst({
-		where: {
-			id: {
-				equals: params.noteId,
+	const note = await prisma.note.findFirst({
+		where: { id: params.noteId },
+		select: {
+			title: true,
+			content: true,
+			images: {
+				select: { id: true, altText: true },
 			},
 		},
 	});
 
 	invariantResponse(note, 'Note not found', { status: 404 });
 
-	return json({
-		note: {
-			title: note.title,
-			content: note.content,
-			images: note.images.map((i) => ({ id: i.id, altText: i.altText })),
-		},
-	});
+	return json({ note });
 }
 
 export async function action({ params, request }: DataFunctionArgs) {
-	invariantResponse(params.noteId, 'noteId param is required');
+	const { noteId } = params;
+	invariantResponse(noteId, 'noteId param is required');
 
 	const formData = await parseMultipartFormData(
 		request,
@@ -75,8 +88,38 @@ export async function action({ params, request }: DataFunctionArgs) {
 
 	await validateCSRF(formData, request.headers);
 
-	const submission = parse(formData, {
-		schema: NoteEditorSchema,
+	const submission = await parse(formData, {
+		schema: NoteEditorSchema.transform(async ({ images = [], ...data }) => {
+			return {
+				...data,
+				imageUpdates: await Promise.all(
+					images.filter(imageHasId).map(async (image) => {
+						return imageHasFile(image)
+							? {
+									id: image.id,
+									altText: image.altText,
+									contentType: image.file.type,
+									blob: Buffer.from(await image.file.arrayBuffer()),
+							  }
+							: {
+									id: image.id,
+									altText: image.altText,
+							  };
+					}),
+				),
+				newImages: await Promise.all(
+					images
+						.filter(imageHasFile)
+						.filter((image) => !image.id)
+						.map(async (image) => ({
+							altText: image.altText,
+							contentType: image.file.type,
+							blob: Buffer.from(await image.file.arrayBuffer()),
+						})),
+				),
+			};
+		}),
+		async: true,
 	});
 
 	if (submission.intent !== 'submit') {
@@ -89,16 +132,38 @@ export async function action({ params, request }: DataFunctionArgs) {
 		});
 	}
 
-	const { title, content, images = [] } = submission.value;
-
-	await updateNote({
-		id: params.noteId,
+	const {
 		title,
 		content,
-		images,
+		imageUpdates = [],
+		newImages = [],
+	} = submission.value;
+
+	await prisma.note.update({
+		select: { id: true },
+		where: { id: noteId },
+		data: {
+			title,
+			content,
+			images: {
+				deleteMany: {
+					id: {
+						notIn: imageUpdates.map((i) => i.id),
+					},
+				},
+				updateMany: imageUpdates.map((updates) => ({
+					where: { id: updates.id },
+					data: {
+						...updates,
+						id: updates.blob ? cuid() : updates.id,
+					},
+				})),
+				create: newImages,
+			},
+		},
 	});
 
-	return redirect(`/users/${params.username}/notes/${params.noteId}`);
+	return redirect(`/users/${params.username}/notes/${noteId}`);
 }
 
 export function ErrorBoundary() {

@@ -2,32 +2,24 @@ import { json, type DataFunctionArgs } from '@remix-run/node';
 import { Link, NavLink, Outlet, useLoaderData } from '@remix-run/react';
 import { GeneralErrorBoundary } from '@/components/error-boundary';
 import { cn, getUserImgSrc, invariantResponse } from '@/utils/misc';
-import { db } from '@/utils/db.server';
+import { prisma } from '@/utils/db.server';
 
 export async function loader({ params }: DataFunctionArgs) {
-	const owner = db.user.findFirst({
+	const owner = await prisma.user.findFirst({
+		select: {
+			name: true,
+			username: true,
+			image: { select: { id: true } },
+			notes: { select: { id: true, title: true } },
+		},
 		where: {
-			username: {
-				equals: params.username,
-			},
+			username: params.username,
 		},
 	});
 
 	invariantResponse(owner, 'Owner not found', { status: 404 });
 
-	const notes = db.note
-		.findMany({
-			where: {
-				owner: {
-					username: {
-						equals: params.username,
-					},
-				},
-			},
-		})
-		.map(({ id, title }) => ({ id, title }));
-
-	return json({ owner, notes });
+	return json({ owner });
 }
 
 export default function NotesRoute() {
@@ -52,7 +44,7 @@ export default function NotesRoute() {
 							</h1>
 						</Link>
 						<ul className='overflow-y-auto overflow-x-hidden pb-12'>
-							{data.notes.map((note) => (
+							{data.owner.notes.map((note) => (
 								<li key={note.id} className='p-1 pr-0'>
 									<NavLink
 										to={note.id}
